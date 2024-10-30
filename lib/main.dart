@@ -120,7 +120,9 @@ class _DockState<T> extends State<Dock<T>> {
                   /// To check if the item is being dropped at the end of the dock
                   : showEndSpacing
                       ? atindex
-                      : atindex - 1;
+                      : pickedIndex < atindex
+                          ? atindex - 1
+                          : atindex;
               icons.insert(newIndex, temp);
 
               /// To reset the values of the variables
