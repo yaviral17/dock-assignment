@@ -94,6 +94,10 @@ class _DockState<T> extends State<Dock<T>> {
   void onIteamDrop(DragTargetDetails<Object?> details) {
     log("dropped at ${details.offset} $outOfDock");
     setState(() {
+      /// resetting picked will instantly hind the spacing animated container
+      /// and will remove unwanted delay in the space removal animation
+      picked = false;
+
       /// these 3 lines of code will swap the picked item with the item where it is hovering if the
       /// icon is dropped in the dock
       T temp = icons[pickedIndex];
@@ -114,7 +118,6 @@ class _DockState<T> extends State<Dock<T>> {
       atindex = -1;
       pickedIndex = -1;
       capturePoint = null;
-      picked = false;
       showEndSpacing = false;
       outOfDock = false;
     });
@@ -194,36 +197,38 @@ class _DockState<T> extends State<Dock<T>> {
         showEndSpacing && (index == icons.length - 1) && !outOfDock;
 
     return Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          color: Colors.black12,
-        ),
-        padding: const EdgeInsets.all(4),
-        child: DragTarget(
-          onLeave: whenItemLeavesDock,
-          onAcceptWithDetails: onIteamDrop,
-          onMove: movingItem,
-          builder: (context, candidateData, rejectedData) {
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: List.generate(
-                icons.length,
-                (index) {
-                  return Draggable<Object>(
-                    data: icons[index],
-                    feedback: widget.builder(icons[index]),
-                    childWhenDragging: AnimatedContainer(
-                      margin: EdgeInsets.all(
-                          childWhenDraggingAnimationTrigger ? 8 : 0),
-                      duration: animationDuration,
-                      curve: animationCurve,
-                      width: childWhenDraggingAnimationTrigger ? 48 : 0,
-                      height: 48,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AnimatedContainer(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        color: Colors.black12,
+      ),
+      padding: const EdgeInsets.all(4),
+      child: DragTarget(
+        onLeave: whenItemLeavesDock,
+        onAcceptWithDetails: onIteamDrop,
+        onMove: movingItem,
+        builder: (context, candidateData, rejectedData) {
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(
+              icons.length,
+              (index) {
+                return Draggable<Object>(
+                  data: icons[index],
+                  feedback: widget.builder(icons[index]),
+                  childWhenDragging: AnimatedContainer(
+                    margin: EdgeInsets.all(
+                        childWhenDraggingAnimationTrigger ? 8 : 0),
+                    duration: animationDuration,
+                    curve: animationCurve,
+                    width: childWhenDraggingAnimationTrigger ? 48 : 0,
+                    height: 48,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Visibility(
+                        visible: picked,
+                        child: AnimatedContainer(
                           duration: animationDuration,
                           curve: animationCurve,
                           margin: EdgeInsets.all(
@@ -234,10 +239,15 @@ class _DockState<T> extends State<Dock<T>> {
                               itemLeftSpacingAnimationTrigger(index) ? 48 : 0,
                           height: 48,
                         ),
-                        widget.builder(
+                      ),
+                      FittedBox(
+                        child: widget.builder(
                           icons[index],
                         ),
-                        AnimatedContainer(
+                      ),
+                      Visibility(
+                        visible: picked,
+                        child: AnimatedContainer(
                           duration: animationDuration,
                           curve: animationCurve,
                           margin: EdgeInsets.all(
@@ -246,13 +256,15 @@ class _DockState<T> extends State<Dock<T>> {
                               itemRightSpacingAnimationTrigger(index) ? 48 : 0,
                           height: 48,
                         ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            );
-          },
-        ));
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          );
+        },
+      ),
+    );
   }
 }
