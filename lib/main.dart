@@ -91,8 +91,108 @@ class _DockState<T> extends State<Dock<T>> {
     icons.addAll(widget.items);
   }
 
+  void onIteamDrop(DragTargetDetails<Object?> details) {
+    log("dropped at ${details.offset} $outOfDock");
+    setState(() {
+      /// these 3 lines of code will swap the picked item with the item where it is hovering if the
+      /// icon is dropped in the dock
+      T temp = icons[pickedIndex];
+      icons.removeAt(pickedIndex);
+      int newIndex = atindex == 0
+          ? 0
+
+          /// To check if the item is being dropped at the end of the dock
+          : showEndSpacing
+              ? atindex
+              : pickedIndex < atindex
+                  ? atindex - 1
+                  : atindex;
+
+      icons.insert(newIndex, temp);
+
+      /// To reset the values of the variables
+      atindex = -1;
+      pickedIndex = -1;
+      capturePoint = null;
+      picked = false;
+      showEndSpacing = false;
+      outOfDock = false;
+    });
+  }
+
+  void movingItem(DragTargetDetails<Object?> details) {
+    /// this if condition is to check if the drag is started
+    /// and it will capture the point from where the drag started
+    /// and will never change the capture point until the drag is completed
+    /// this will help to calculate the difference between the starting point and the current point
+    if (capturePoint == null) {
+      /// this will get the starting point of the drag
+      capturePoint = details.offset;
+
+      /// this will get the index of the picked item
+      pickedIndex = icons.indexOf(details.data as T);
+    }
+
+    /// this will calculate the difference between the starting point and the current point
+    double differenceBetweenPoints = details.offset.dx - capturePoint!.dx;
+
+    setState(() {
+      picked = true;
+
+      // this will set the value of outOfDock to false when the item is in the dock
+      if (outOfDock) {
+        outOfDock = false;
+      }
+
+      /// this will calculate the index where the dragged item is hovering
+      /// I have divided the difference between the points by 48 as the width of the item is 50
+      atindex = pickedIndex + (differenceBetweenPoints ~/ 48);
+
+      /// this will check if the item is being dropped at the end of the dock
+      if (atindex + 1 > icons.length) {
+        showEndSpacing = true;
+        atindex = icons.length - 1;
+      }
+
+      /// [atindex < 0] is to check if the item is being dropped at the start of the dock
+      /// difference of offsets can be negative due to the drag animation giving room to drag in dock
+      else if (atindex < 0) {
+        log("at index $atindex pickedfrom $pickedIndex");
+        atindex = 0;
+      } else {
+        showEndSpacing = false;
+      }
+
+      /// this log will help to debug the index where the dragged item is hovering
+      log("at index $atindex , pickedfrom $pickedIndex ${(pickedIndex + 1 == atindex)}");
+    });
+  }
+
+  void whenItemLeavesDock(Object? data) {
+    /// To set the value of [outOfDock] to true when the item is out of the dock
+    setState(() {
+      outOfDock = true;
+      log("out of dock");
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    /// [animationDuration] is the animation curve for everyaniamtion that happens in dock
+    const Curve animationCurve = Curves.fastOutSlowIn;
+
+    /// [animationDuration] is the duration of the animation
+    const Duration animationDuration = Duration(milliseconds: 450);
+
+    /// [childWhenDraggingAnimationTrigger] is a boolean to check if the item is being dragged
+    bool childWhenDraggingAnimationTrigger =
+        atindex == pickedIndex && !outOfDock;
+
+    bool itemLeftSpacingAnimationTrigger(int index) =>
+        atindex == index && !showEndSpacing && !outOfDock;
+    bool itemRightSpacingAnimationTrigger(int index) =>
+        showEndSpacing && (index == icons.length - 1) && !outOfDock;
+
     return Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
@@ -100,76 +200,9 @@ class _DockState<T> extends State<Dock<T>> {
         ),
         padding: const EdgeInsets.all(4),
         child: DragTarget(
-          onLeave: (data) {
-            /// To set the value of [outOfDock] to true when the item is out of the dock
-            setState(() {
-              outOfDock = true;
-            });
-          },
-          onAcceptWithDetails: (details) {
-            log("dropped at ${details.offset} $outOfDock");
-
-            setState(() {
-              /// these 3 lines of code will swap the picked item with the item where it is hovering if the
-              /// icon is dropped in the dock
-              T temp = icons[pickedIndex];
-              icons.removeAt(pickedIndex);
-              int newIndex = atindex == 0
-                  ? 0
-
-                  /// To check if the item is being dropped at the end of the dock
-                  : showEndSpacing
-                      ? atindex
-                      : pickedIndex < atindex
-                          ? atindex - 1
-                          : atindex;
-              icons.insert(newIndex, temp);
-
-              /// To reset the values of the variables
-              atindex = -1;
-              pickedIndex = -1;
-              capturePoint = null;
-              picked = false;
-              showEndSpacing = false;
-              outOfDock = false;
-            });
-          },
-          onMove: (details) {
-            /// this if condition is to check if the drag is started
-            /// and it will capture the point from where the drag started
-            /// and will never change the capture point until the drag is completed
-            /// this will help to calculate the difference between the starting point and the current point
-            if (capturePoint == null) {
-              /// this will get the starting point of the drag
-              capturePoint = details.offset;
-
-              /// this will get the index of the picked item
-              pickedIndex = icons.indexOf(details.data as T);
-            }
-
-            /// this will calculate the difference between the starting point and the current point
-            double differenceBetweenPoints =
-                details.offset.dx - capturePoint!.dx;
-
-            setState(() {
-              picked = true;
-              outOfDock = false;
-
-              /// this will calculate the index where the dragged item is hovering
-              /// I have divided the difference between the points by 48 as the width of the item is 50
-              atindex = pickedIndex + (differenceBetweenPoints ~/ 48);
-
-              if (atindex + 1 > icons.length) {
-                showEndSpacing = true;
-                atindex = icons.length - 1;
-              } else {
-                showEndSpacing = false;
-              }
-
-              /// this log will help to debug the index where the dragged item is hovering
-              log("at index $atindex , pickedfrom $pickedIndex ${(pickedIndex + 1 == atindex)}");
-            });
-          },
+          onLeave: whenItemLeavesDock,
+          onAcceptWithDetails: onIteamDrop,
+          onMove: movingItem,
           builder: (context, candidateData, rejectedData) {
             return Row(
               mainAxisSize: MainAxisSize.min,
@@ -179,38 +212,38 @@ class _DockState<T> extends State<Dock<T>> {
                   return Draggable<Object>(
                     data: icons[index],
                     feedback: widget.builder(icons[index]),
-
-                    /// [atindex == pickedIndex] will help in creating a space for item when it's being hovered from where it was picked
                     childWhenDragging: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.fastEaseInToSlowEaseOut,
-                      width: atindex == pickedIndex && !outOfDock ? 48 : 0,
+                      margin: EdgeInsets.all(
+                          childWhenDraggingAnimationTrigger ? 8 : 0),
+                      duration: animationDuration,
+                      curve: animationCurve,
+                      width: childWhenDraggingAnimationTrigger ? 48 : 0,
                       height: 48,
                     ),
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          curve: Curves.fastEaseInToSlowEaseOut,
+                          duration: animationDuration,
+                          curve: animationCurve,
+                          margin: EdgeInsets.all(
+                              itemLeftSpacingAnimationTrigger(index) ? 8 : 0),
 
                           /// Here I have checked if the item is being hovered and the item is not out of the dock
                           width:
-                              atindex == index && !showEndSpacing && !outOfDock
-                                  ? 48
-                                  : 0,
+                              itemLeftSpacingAnimationTrigger(index) ? 48 : 0,
                           height: 48,
                         ),
                         widget.builder(
                           icons[index],
                         ),
                         AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          curve: Curves.fastEaseInToSlowEaseOut,
-                          width: showEndSpacing &&
-                                  (index == icons.length - 1) &&
-                                  !outOfDock
-                              ? 48
-                              : 0,
+                          duration: animationDuration,
+                          curve: animationCurve,
+                          margin: EdgeInsets.all(
+                              itemRightSpacingAnimationTrigger(index) ? 8 : 0),
+                          width:
+                              itemRightSpacingAnimationTrigger(index) ? 48 : 0,
                           height: 48,
                         ),
                       ],
